@@ -157,12 +157,14 @@ fun MainContainer(
                 )
                 2 -> VoiceChangerTab(
                     soundEngine = soundEngine,
+                    ttsEngine = ttsEngine,
                     onSaveCustomSound = { soundName ->
                         customSavedSounds.add(soundName)
                     }
                 )
                 3 -> MemeAndSoundboardTab(
                     soundEngine = soundEngine,
+                    ttsEngine = ttsEngine,
                     customSoundList = customSavedSounds
                 )
                 4 -> RewardsAndXpTab()

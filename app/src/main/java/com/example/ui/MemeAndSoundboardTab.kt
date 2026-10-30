@@ -35,11 +35,13 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.R
 import com.example.audio.SoundEffectsEngine
+import com.example.audio.TextToSpeechEngine
 import com.example.ui.theme.*
 
 @Composable
 fun MemeAndSoundboardTab(
     soundEngine: SoundEffectsEngine,
+    ttsEngine: TextToSpeechEngine,
     customSoundList: List<String> = emptyList()
 ) {
     val context = LocalContext.current
@@ -128,7 +130,7 @@ fun MemeAndSoundboardTab(
             Tab(
                 selected = subTabState == 0,
                 onClick = { subTabState = 0 },
-                text = { Text("🎬 موزه ملی صداها و میم‌ها", fontWeight = FontWeight.Bold, fontSize = 12.sp) }
+                text = { Text("🎬 موزه ملی صداها و دیالوگ‌ها", fontWeight = FontWeight.Bold, fontSize = 12.sp) }
             )
             Tab(
                 selected = subTabState == 1,
@@ -150,7 +152,7 @@ fun MemeAndSoundboardTab(
                         .padding(14.dp)
                 ) {
                     Text(
-                        text = "🎬 موزهی ملی صداها و میمهای طنز",
+                        text = "🎬 موزهی ملی صداها و دیالوگ‌های طنز ماندگار",
                         color = JoyPink,
                         fontSize = 18.sp,
                         fontWeight = FontWeight.Bold
@@ -213,7 +215,19 @@ fun MemeAndSoundboardTab(
                                 isPlaying = activePlayingTitle == title,
                                 onClick = {
                                     activePlayingTitle = title
-                                    soundEngine.playSoundEffect(mapTitleToEffectId(title))
+                                    val dialogueText = getSpeechTextForTitle(title)
+                                    val pitch = getPitchForTitle(title)
+                                    val speechRate = getSpeechRateForTitle(title)
+
+                                    // 1. Speak actual dialogue with dramatic character pitch
+                                    ttsEngine.speak(dialogueText, pitch = pitch, speechRate = speechRate)
+
+                                    // 2. Play matching acoustic sound effect
+                                    val effectId = mapTitleToEffectId(title)
+                                    soundEngine.playSoundEffect(effectId)
+
+                                    // 3. Show instant feedback toast
+                                    Toast.makeText(context, "🗣️ $dialogueText", Toast.LENGTH_SHORT).show()
                                 }
                             )
                         }
@@ -363,14 +377,76 @@ fun SoundCard(
     }
 }
 
+private fun getSpeechTextForTitle(title: String): String {
+    return when {
+        title.contains("قیصر") -> "قیصر! داداش فرمون رو کشتن!"
+        title.contains("بهمن مفید") -> "ما بودیم، آره و اینا خیلی بودیم!"
+        title.contains("حبیب آقا") -> "حبیب آقا! نامردا از پشت با خنجر زدن!"
+        title.contains("سوته‌دلان") -> "مجید تو چرا؟! همه رفتن، ما موندیم و این تنهایی!"
+        title.contains("مؤلف") -> "ما خودمون مؤلف این سبک‌هاییم، شوخی نکن!"
+        title.contains("دنیا دو روزه") -> "دنیا دو روزه، بخور غصه نخور برادر!"
+        title.contains("میری") -> "قربون اون قد و بالات! متلک ننداز به ما!"
+        title.contains("ظهوری") -> "چشم و ابرو نیا شیطون، کار دستمون میدی!"
+        title.contains("فردین") -> "صفای وجودت داداش، مرامتو عشقه!"
+        title.contains("آرام‌سپهر") -> "این همه خنده و شادی برای شما مردم گل!"
+        title.contains("دشواری") -> "دشواری نداره! اینجا هیچ دشواری نداریم ما!"
+        title.contains("سوسیس") -> "بخور! همش گوشته، همش سوسیسه!"
+        title.contains("ننه من گشنمه") -> "ننه من گشنمه! ناهار چی داریم تو این خونه؟"
+        title.contains("مربا بده بابا") -> "مربا بده بابا! صبحونه بدون مربا که صفا نداره!"
+        title.contains("گردِ نخود") -> "گرد نخود برره رو ریختن، کلاً گیج و خندان شدیم!"
+        title.contains("پت و مت (هورا") -> "هورا! هورا! با پت و مت درستش کردیم!"
+        title.contains("لوله‌کشی") -> "لوله ترکید، کل خونه رفت زیر آب!"
+        title.contains("صندلی") -> "صندلی رو از زیر پا بریدیم، محکم افتادیم زمین!"
+        title.contains("خانم کوچولو") -> "سلام به همه بچه‌های گل و خنده‌رو!"
+        title.contains("ریتم شاد کارتون") -> "هی را را! شادی و خاطرات شیرین کودکی!"
+        title.contains("پلیس‌راه") -> "پلیس راه باید بیای! مدارک خودرو رو نشون بده!"
+        title.contains("گاوِ فینال") -> "گاو فینال جوکر اومد وسط استودیو!"
+        title.contains("زلزله") -> "زلزله‌ی نقطه‌چین اومد، فرار کنید!"
+        title.contains("طهماسب") -> "آقای طهماسب، ما خیلی دوستت داریم ولی مهمونیه دیگه!"
+        title.contains("دوربین مخفی") -> "دوربین مخفیه! به دوربین دست تکون بده، داری پخش میشی!"
+        title.contains("محمد بوقی") -> "بوق بوق! ایران ایران قهرمان!"
+        title.contains("ربات") -> "ربات هوشمند وارد خیابان شد، همه ترسیدند!"
+        title.contains("تصادف") -> "وای تصادف شد! صدای جیغ و آژیر خطر!"
+        title.contains("شوک‌های ناگهانی") -> "شوخی کردم! هول نشو بابا، دوربین مخفی بود!"
+        title.contains("تیک‌تاک") -> "عجب ری‌اکشنی! توی فضای مجازی وایرال شد رفت!"
+        title.contains("میفونه") -> "سامورایی با شمشیر وارد میدان نبرد شد!"
+        title.contains("برانسون") -> "غرب وحشی با سامورایی طرف شده، تسلیم شو!"
+        title.contains("ایستوود") -> "تو این دنیا دو جور آدم هست، اونایی که تفنگ پر دارن..."
+        title.contains("سوت") -> "سوت خوب، بد، زشت در صحرای بی‌انتها!"
+        title.contains("تاکشو") -> "حرکات موزون کمدی در استودیو تاکشو!"
+        title.contains("خنده‌های اسبی") -> "هاهاهاها! خنده‌های قهقه‌دار و پرانرژی مجری!"
+        else -> title.replace(Regex("[^a-zA-Z0-9آ-ی‌ ]"), "").trim()
+    }
+}
+
+private fun getPitchForTitle(title: String): Float {
+    return when {
+        title.contains("قیصر") || title.contains("بهمن مفید") || title.contains("ایستوود") || title.contains("میفونه") -> 0.75f
+        title.contains("ننه من گشنمه") || title.contains("مربا بده بابا") || title.contains("خانم کوچولو") -> 1.4f
+        title.contains("پت و مت") || title.contains("میری") -> 1.35f
+        else -> 1.0f
+    }
+}
+
+private fun getSpeechRateForTitle(title: String): Float {
+    return when {
+        title.contains("پت و مت") || title.contains("میری") -> 1.15f
+        title.contains("قیصر") || title.contains("ایستوود") -> 0.85f
+        else -> 1.0f
+    }
+}
+
 private fun mapTitleToEffectId(title: String): String {
     return when {
-        title.contains("قیصر") || title.contains("بهمن مفید") -> "dramatic_horn"
-        title.contains("دشواری") || title.contains("سوسیس") || title.contains("مربا") -> "laugh_track"
-        title.contains("پت و مت") -> "boing"
-        title.contains("جوکر") || title.contains("پلیس‌راه") -> "cheetori"
-        title.contains("بوق") || title.contains("جیغ") -> "fart"
-        title.contains("میفونه") || title.contains("وسترن") -> "sad_violin"
-        else -> "win_chime"
+        title.contains("قیصر") || title.contains("بهمن مفید") || title.contains("حبیب آقا") || title.contains("زلزله") -> "dramatic_horn"
+        title.contains("دشواری") || title.contains("سوسیس") || title.contains("طهماسب") || title.contains("خنده‌های اسبی") || title.contains("گاو") -> "laugh_track"
+        title.contains("پت و مت") || title.contains("صندلی") || title.contains("ظهوری") -> "boing"
+        title.contains("پلیس‌راه") -> "wrong_buzzer"
+        title.contains("گردِ نخود") || title.contains("لوله‌کشی") -> "fart"
+        title.contains("سوته‌دلان") || title.contains("ایستوود") || title.contains("سوت") -> "sad_violin"
+        title.contains("تصادف") -> "rimshot"
+        title.contains("محمد بوقی") || title.contains("دوربین مخفی") || title.contains("تاکشو") -> "cheer"
+        title.contains("مؤلف") || title.contains("فردین") || title.contains("خانم کوچولو") -> "win_chime"
+        else -> "cheetori"
     }
 }

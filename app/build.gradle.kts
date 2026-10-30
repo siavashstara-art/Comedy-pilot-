@@ -15,7 +15,7 @@ android {
   defaultConfig {
     applicationId = "com.aistudio.comedyhub.app"
     minSdk = 24
-    targetSdk = 36
+    targetSdk = 34
     versionCode = 1
     versionName = "1.0"
 
@@ -34,12 +34,16 @@ android {
       storePassword = System.getenv("STORE_PASSWORD") ?: "android"
       keyAlias = System.getenv("KEY_ALIAS") ?: "androiddebugkey"
       keyPassword = System.getenv("KEY_PASSWORD") ?: "android"
+      enableV1Signing = true
+      enableV2Signing = true
     }
     create("debugConfig") {
       storeFile = file("${rootDir}/debug.keystore")
       storePassword = "android"
       keyAlias = "androiddebugkey"
       keyPassword = "android"
+      enableV1Signing = true
+      enableV2Signing = true
     }
   }
 

@@ -58,11 +58,31 @@ fun AiScenarioTab(
     var topicInput by remember { mutableStateOf("عروسی لاکچری") }
     var selectedTone by remember { mutableStateOf(tones[0]) }
 
+    val listState = androidx.compose.foundation.lazy.rememberLazyListState()
     var isLoading by remember { mutableStateOf(false) }
-    var currentSkit by remember { mutableStateOf<ComedySkit?>(null) }
+    var currentSkit by remember {
+        mutableStateOf<ComedySkit?>(
+            ComedySkit(
+                id = "default_skit",
+                title = "عروسی لاکچری - مادر شاکی 👵",
+                format = "کلیپ کوتاه / ریلز 🎬",
+                characterPreset = "مادر شاکی 👵",
+                situationTopic = "عروسی لاکچری",
+                dialogueLines = listOf(
+                    com.example.model.SkitDialogueLine("مادر شاکی 👵", "چرا کت و شلوار داداشتو پوشیدی؟! آستیناش ۵ متر بلندتره!"),
+                    com.example.model.SkitDialogueLine("پسر جوگیر 📱", "مامان این مد جدیده اورسایزه! تو اینستاگرام همه اینجوری می‌پوشن!"),
+                    com.example.model.SkitDialogueLine("مادر شاکی 👵", "اورسایز چیه؟! شبیه مترسک باغ دایی شدی، آبرومون رفت جلو فامیل!"),
+                    com.example.model.SkitDialogueLine("پدر خسته 👨‍🦳", "ولش کن خانم، فقط سریع کادو رو بدید بریم تا شام تموم نشده!")
+                ),
+                punchline = "💥 نتیجه: در عروسی‌های ایرانی، هرچی شیک‌تر بپوشی بیشتر سوژه خنده فامیل میشی!",
+                tone = "فوق‌العاده خنده‌دار 🤣"
+            )
+        )
+    }
     val isSpeaking by ttsEngine.isSpeaking.collectAsState()
 
     LazyColumn(
+        state = listState,
         modifier = Modifier
             .fillMaxSize()
             .padding(16.dp),
@@ -204,13 +224,18 @@ fun AiScenarioTab(
                 onClick = {
                     isLoading = true
                     coroutineScope.launch {
-                        currentSkit = scenarioGenerator.generateComedySkit(
+                        val topic = topicInput.ifBlank { "عروسی لاکچری" }
+                        val generated = scenarioGenerator.generateComedySkit(
                             format = selectedFormat,
                             characterPreset = selectedCharacter,
-                            situationTopic = topicInput,
+                            situationTopic = topic,
                             tone = selectedTone
                         )
+                        currentSkit = generated
                         isLoading = false
+                        listState.animateScrollToItem(5)
+                        ttsEngine.speak("سناریوی جدید آماده شد! ${generated.title}")
+                        Toast.makeText(context, "🎬 سناریوی شما تولید شد!", Toast.LENGTH_SHORT).show()
                     }
                 },
                 modifier = Modifier

@@ -1,7 +1,10 @@
 package com.example.ui
 
 import android.content.Context
+import android.content.pm.PackageManager
 import android.widget.Toast
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.camera.core.CameraSelector
 import androidx.camera.core.Preview
 import androidx.camera.lifecycle.ProcessCameraProvider
@@ -75,6 +78,21 @@ fun DubsmashStudioTab(
         )
     }
 
+    var hasCameraPermission by remember {
+        mutableStateOf(
+            ContextCompat.checkSelfPermission(context, android.Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED
+        )
+    }
+
+    val cameraPermissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission()
+    ) { isGranted ->
+        hasCameraPermission = isGranted
+        if (!isGranted) {
+            Toast.makeText(context, "⚠️ برای دابسمش، دسترسی دوربین لازم است.", Toast.LENGTH_SHORT).show()
+        }
+    }
+
     val filters = listOf("بدون فیلتر 🔮", "عینک آفتابی 😎", "قاب میم 🖼️", "نئون دهه هشتاد ⚡", "سیاه سفید 🎬")
 
     LazyColumn(
@@ -112,32 +130,61 @@ fun DubsmashStudioTab(
                 )
             ) {
                 Box(modifier = Modifier.fillMaxSize()) {
-                    // CameraX Preview View
-                    AndroidView(
-                        factory = { ctx ->
-                            val previewView = PreviewView(ctx)
-                            val cameraProviderFuture = ProcessCameraProvider.getInstance(ctx)
-                            cameraProviderFuture.addListener({
-                                try {
-                                    val cameraProvider = cameraProviderFuture.get()
-                                    val preview = Preview.Builder().build().also {
-                                        it.setSurfaceProvider(previewView.surfaceProvider)
+                    if (hasCameraPermission) {
+                        // CameraX Preview View
+                        AndroidView(
+                            factory = { ctx ->
+                                val previewView = PreviewView(ctx)
+                                val cameraProviderFuture = ProcessCameraProvider.getInstance(ctx)
+                                cameraProviderFuture.addListener({
+                                    try {
+                                        val cameraProvider = cameraProviderFuture.get()
+                                        val preview = Preview.Builder().build().also {
+                                            it.setSurfaceProvider(previewView.surfaceProvider)
+                                        }
+                                        val cameraSelector = if (isFrontCamera) {
+                                            CameraSelector.DEFAULT_FRONT_CAMERA
+                                        } else {
+                                            CameraSelector.DEFAULT_BACK_CAMERA
+                                        }
+                                        cameraProvider.unbindAll()
+                                        cameraProvider.bindToLifecycle(lifecycleOwner, cameraSelector, preview)
+                                    } catch (e: Exception) {
+                                        e.printStackTrace()
                                     }
-                                    val cameraSelector = if (isFrontCamera) {
-                                        CameraSelector.DEFAULT_FRONT_CAMERA
-                                    } else {
-                                        CameraSelector.DEFAULT_BACK_CAMERA
-                                    }
-                                    cameraProvider.unbindAll()
-                                    cameraProvider.bindToLifecycle(lifecycleOwner, cameraSelector, preview)
-                                } catch (e: Exception) {
-                                    e.printStackTrace()
-                                }
-                            }, ContextCompat.getMainExecutor(ctx))
-                            previewView
-                        },
-                        modifier = Modifier.fillMaxSize()
-                    )
+                                }, ContextCompat.getMainExecutor(ctx))
+                                previewView
+                            },
+                            modifier = Modifier.fillMaxSize()
+                        )
+                    } else {
+                        // Camera permission request fallback
+                        Column(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .background(CardDarkBg)
+                                .padding(20.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.Center
+                        ) {
+                            Text("📷", fontSize = 48.sp)
+                            Spacer(modifier = Modifier.height(10.dp))
+                            Text(
+                                text = "برای ضبط دابسمش، دوربین را فعال کنید",
+                                color = Color.White,
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 14.sp
+                            )
+                            Spacer(modifier = Modifier.height(12.dp))
+                            Button(
+                                onClick = { cameraPermissionLauncher.launch(android.Manifest.permission.CAMERA) },
+                                colors = ButtonDefaults.buttonColors(containerColor = JoyYellow, contentColor = Color.Black),
+                                shape = RoundedCornerShape(12.dp)
+                            ) {
+                                Text("فعال‌سازی دوربین", fontWeight = FontWeight.Bold)
+                            }
+                        }
+                    }
 
                     // Overlay Filter Graphic Badge
                     if (activeFilter != "بدون فیلتر") {

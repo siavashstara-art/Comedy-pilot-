@@ -1,6 +1,10 @@
 package com.example.ui
 
+import android.Manifest
+import android.content.pm.PackageManager
 import android.widget.Toast
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.*
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.background
@@ -29,19 +33,34 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.core.content.ContextCompat
 import com.example.audio.SoundEffectsEngine
+import com.example.audio.TextToSpeechEngine
 import com.example.model.VoiceEffectItem
 import com.example.ui.theme.*
 
 @Composable
 fun VoiceChangerTab(
     soundEngine: SoundEffectsEngine,
+    ttsEngine: TextToSpeechEngine,
     onSaveCustomSound: (String) -> Unit
 ) {
     val context = LocalContext.current
     val isRecording by soundEngine.isRecording.collectAsState()
     val recordedAudioBuffer by soundEngine.recordedAudioBuffer.collectAsState()
     val waveformLevels by soundEngine.audioWaveformLevels.collectAsState()
+
+    // Runtime permission launcher for microphone
+    val micPermissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission()
+    ) { isGranted ->
+        if (isGranted) {
+            soundEngine.startRecordingMicrophone()
+            Toast.makeText(context, "🎤 در حال ضبط صدا... لطفاً صحبت کنید!", Toast.LENGTH_SHORT).show()
+        } else {
+            Toast.makeText(context, "⚠️ برای ضبط و تغییر صدا، دسترسی میکروفون لازم است.", Toast.LENGTH_LONG).show()
+        }
+    }
 
     val effects = listOf(
         VoiceEffectItem("chipmunk", "سنجاب خنده‌دار", "Chipmunk", "🐿️", "صدای زیر و نازک و تند", 1.8f, 1.3f, accentColor = JoyYellow),
@@ -72,7 +91,7 @@ fun VoiceChangerTab(
             textAlign = TextAlign.Start
         )
         Text(
-            text = "صدای خود را ضبط کنید و افکت‌های خنده‌دار سنجاب، غول، ربات و هلیوم رویش اعمال کنید!",
+            text = "صدای خود را ضبط کنید یا روی افکت‌ها بزنید تا صدای نمونه را بشنوید!",
             color = Color.White.copy(alpha = 0.7f),
             fontSize = 12.sp,
             modifier = Modifier
@@ -101,7 +120,7 @@ fun VoiceChangerTab(
                 verticalArrangement = Arrangement.SpaceBetween
             ) {
                 Text(
-                    text = if (isRecording) "🔴 در حال ضبط صدا... بگو هلو چطوری!" else if (recordedAudioBuffer != null) "✅ صدای شما آماده‌ی تغییر افکت است" else "برای شروع ضبط، روی میکروفون کلیک کنید",
+                    text = if (isRecording) "🔴 در حال ضبط صدا... بگو: سلام چطوری!" else if (recordedAudioBuffer != null) "✅ صدای شما با موفقیت ضبط شد!" else "برای ضبط صدای خود، دکمه میکروفون را لمس کنید",
                     color = if (isRecording) JoyPink else Color.White,
                     fontSize = 13.sp,
                     fontWeight = FontWeight.Bold
@@ -128,7 +147,7 @@ fun VoiceChangerTab(
                     }
                 }
 
-                // Record Mic Button
+                // Record Mic Button Row
                 Row(
                     horizontalArrangement = Arrangement.spacedBy(12.dp),
                     verticalAlignment = Alignment.CenterVertically
@@ -137,8 +156,19 @@ fun VoiceChangerTab(
                         onClick = {
                             if (isRecording) {
                                 soundEngine.stopRecordingMicrophone()
+                                Toast.makeText(context, "✅ ضبط متوقف شد! حالا افکت‌ها را انتخاب کنید.", Toast.LENGTH_SHORT).show()
                             } else {
-                                soundEngine.startRecordingMicrophone()
+                                val hasPermission = ContextCompat.checkSelfPermission(
+                                    context,
+                                    Manifest.permission.RECORD_AUDIO
+                                ) == PackageManager.PERMISSION_GRANTED
+
+                                if (hasPermission) {
+                                    soundEngine.startRecordingMicrophone()
+                                    Toast.makeText(context, "🎤 در حال ضبط صدا... صحبت کنید!", Toast.LENGTH_SHORT).show()
+                                } else {
+                                    micPermissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
+                                }
                             }
                         },
                         colors = ButtonDefaults.buttonColors(
@@ -164,13 +194,14 @@ fun VoiceChangerTab(
                                     selectedEffect.speedMultiplier,
                                     selectedEffect.isRobotEffect
                                 )
+                                Toast.makeText(context, "▶️ پخش صدای شما با افکت ${selectedEffect.nameFa}", Toast.LENGTH_SHORT).show()
                             },
                             colors = ButtonDefaults.buttonColors(containerColor = JoyYellow, contentColor = Color.Black),
                             shape = RoundedCornerShape(12.dp)
                         ) {
                             Icon(Icons.Default.VolumeUp, contentDescription = "پخش")
                             Spacer(modifier = Modifier.width(6.dp))
-                            Text("پخش افکت ${selectedEffect.nameFa}", fontWeight = FontWeight.Bold)
+                            Text("پخش صدای شما: ${selectedEffect.nameFa}", fontWeight = FontWeight.Bold)
                         }
                     }
                 }
@@ -179,9 +210,9 @@ fun VoiceChangerTab(
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        // Effects Grid Selector
+        // Effects Grid Selector Header
         Text(
-            text = "انتخاب افکت صوتی خنده‌دار:",
+            text = "انتخاب افکت صوتی خنده‌دار (لمس کنید تا بشنوید):",
             color = JoyYellow,
             fontSize = 14.sp,
             fontWeight = FontWeight.Bold,
@@ -202,13 +233,28 @@ fun VoiceChangerTab(
                     onClick = {
                         selectedEffect = fx
                         if (recordedAudioBuffer != null) {
+                            // Play user's actual voice with this effect!
                             soundEngine.playRecordedAudioWithEffect(
                                 fx.pitchMultiplier,
                                 fx.speedMultiplier,
                                 fx.isRobotEffect
                             )
+                            Toast.makeText(context, "🎤 صدای شما با افکت ${fx.nameFa}!", Toast.LENGTH_SHORT).show()
                         } else {
-                            soundEngine.playSoundEffect("win_chime")
+                            // No recording yet: Speak funny sample dialogue demonstrating the character effect!
+                            when (fx.id) {
+                                "chipmunk" -> ttsEngine.speak("سلام! من سنجاب شیطون کمدی پایلوتم!", pitch = 1.8f, speechRate = 1.3f)
+                                "monster" -> ttsEngine.speak("من غول بزرگ و خنده‌دارم!", pitch = 0.6f, speechRate = 0.85f)
+                                "robot" -> ttsEngine.speak("سلام کاربر عزیز، من ربات هوشمندم!", pitch = 1.0f, speechRate = 1.0f)
+                                "helium" -> ttsEngine.speak("صدام شبیه بادکنک هلیومی شده!", pitch = 2.1f, speechRate = 1.15f)
+                                "megaphone" -> ttsEngine.speak("توجه فرمایید! برنامه کمدی پایلوت در حال اجراست!", pitch = 1.2f, speechRate = 1.0f)
+                                "echo" -> ttsEngine.speak("پژواک صدا در غار... سلام... سلام...", pitch = 0.95f, speechRate = 0.9f)
+                                "slow" -> ttsEngine.speak("چــــطـــــوری ایــــــرانـــــی؟", pitch = 0.7f, speechRate = 0.6f)
+                                "fast" -> ttsEngine.speak("سریع بدو که قطار خنده رفت!", pitch = 1.4f, speechRate = 1.5f)
+                                else -> ttsEngine.speak("افکت صدای ${fx.nameFa} فعال شد!", pitch = fx.pitchMultiplier, speechRate = fx.speedMultiplier)
+                            }
+                            soundEngine.playSoundEffect(if (fx.id == "monster") "dramatic_horn" else if (fx.id == "chipmunk") "boing" else "cheetori")
+                            Toast.makeText(context, "🗣️ نمونه ${fx.nameFa} | برای تغییر صدای خودتان، دکمه میکروفون بالا را بزنید!", Toast.LENGTH_LONG).show()
                         }
                     },
                     colors = CardDefaults.cardColors(
