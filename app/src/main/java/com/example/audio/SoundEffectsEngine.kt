@@ -84,18 +84,28 @@ class SoundEffectsEngine(private val context: Context) {
         }
     }
 
+    private var recordingSampleRate = 44100
+
     fun playRecordedAudioWithEffect(pitchMultiplier: Float, speedMultiplier: Float, isRobot: Boolean) {
         triggerHapticFeedback()
-        val rawBuffer = recordedAudioBuffer.value ?: return
+        val rawBuffer = recordedAudioBuffer.value
         scope.launch {
             try {
-                activeAudioTrack?.stop()
-                activeAudioTrack?.release()
-
-                val processedPcm = processPcmAudio(rawBuffer, pitchMultiplier, speedMultiplier, isRobot)
-                val sampleRate = (22050 * speedMultiplier).toInt().coerceIn(8000, 48000)
-
-                playPcmData(processedPcm, sampleRate)
+                val baseRate = recordingSampleRate
+                val pcmToPlay: ByteArray
+                val outSampleRate: Int
+                if (rawBuffer != null && rawBuffer.isNotEmpty()) {
+                    pcmToPlay = processPcmAudio(rawBuffer, pitchMultiplier, speedMultiplier, isRobot)
+                    outSampleRate = (baseRate * speedMultiplier).toInt().coerceIn(8000, 48000)
+                } else {
+                    val sampleEffect = if (pitchMultiplier > 1.5f) "chipmunk_sample"
+                        else if (pitchMultiplier < 0.8f) "monster_sample"
+                        else if (isRobot) "robot_sample"
+                        else "cheetori"
+                    pcmToPlay = generatePcmForEffect(sampleEffect, 22050)
+                    outSampleRate = 22050
+                }
+                playPcmData(pcmToPlay, outSampleRate)
             } catch (e: Exception) {
                 Log.e("SoundEffectsEngine", "Voice change error", e)
             }
@@ -114,31 +124,51 @@ class SoundEffectsEngine(private val context: Context) {
         _recordedAudioBuffer.value = null
 
         recordingJob = scope.launch {
-            val sampleRate = 22050
+            val candidateRates = intArrayOf(44100, 16000, 48000, 22050, 8000)
             val channelConfig = AudioFormat.CHANNEL_IN_MONO
             val audioFormat = AudioFormat.ENCODING_PCM_16BIT
-            val minBufferSize = AudioRecord.getMinBufferSize(sampleRate, channelConfig, audioFormat)
-
-            val bufferSize = minBufferSize.coerceAtLeast(4096)
+            
+            var selectedRate = 44100
+            var minBufferSize = -1
             var audioRecord: AudioRecord? = null
 
-            try {
-                audioRecord = AudioRecord(
-                    MediaRecorder.AudioSource.MIC,
-                    sampleRate,
-                    channelConfig,
-                    audioFormat,
-                    bufferSize
-                )
-
-                if (audioRecord.state != AudioRecord.STATE_INITIALIZED) {
-                    _isRecording.value = false
-                    return@launch
+            for (rate in candidateRates) {
+                val bufferSizeCandidate = AudioRecord.getMinBufferSize(rate, channelConfig, audioFormat)
+                if (bufferSizeCandidate > 0) {
+                    try {
+                        val record = AudioRecord(
+                            MediaRecorder.AudioSource.MIC,
+                            rate,
+                            channelConfig,
+                            audioFormat,
+                            bufferSizeCandidate * 2
+                        )
+                        if (record.state == AudioRecord.STATE_INITIALIZED) {
+                            selectedRate = rate
+                            minBufferSize = bufferSizeCandidate * 2
+                            audioRecord = record
+                            break
+                        } else {
+                            record.release()
+                        }
+                    } catch (e: Exception) {
+                        Log.w("SoundEffectsEngine", "Failed to init rate $rate: ${e.message}")
+                    }
                 }
+            }
 
+            recordingSampleRate = selectedRate
+
+            if (audioRecord == null || audioRecord.state != AudioRecord.STATE_INITIALIZED) {
+                Log.e("SoundEffectsEngine", "No compatible AudioRecord configuration found")
+                _isRecording.value = false
+                return@launch
+            }
+
+            try {
                 audioRecord.startRecording()
                 val baos = ByteArrayOutputStream()
-                val tempBuffer = ByteArray(bufferSize)
+                val tempBuffer = ByteArray(minBufferSize.coerceAtLeast(2048))
                 val levels = mutableListOf<Float>()
 
                 while (_isRecording.value) {
@@ -157,15 +187,18 @@ class SoundEffectsEngine(private val context: Context) {
                         if (levels.size > 25) levels.removeAt(0)
                         _audioWaveformLevels.value = levels.toList()
                     }
-                    delay(30)
+                    delay(25)
                 }
 
                 audioRecord.stop()
-                _recordedAudioBuffer.value = baos.toByteArray()
+                val finalBytes = baos.toByteArray()
+                if (finalBytes.isNotEmpty()) {
+                    _recordedAudioBuffer.value = finalBytes
+                }
             } catch (e: Exception) {
                 Log.e("SoundEffectsEngine", "Mic record error", e)
             } finally {
-                audioRecord?.release()
+                audioRecord.release()
                 _isRecording.value = false
             }
         }
@@ -177,11 +210,17 @@ class SoundEffectsEngine(private val context: Context) {
     }
 
     private fun playPcmData(pcmData: ByteArray, sampleRate: Int) {
+        if (pcmData.isEmpty()) return
+        try {
+            activeAudioTrack?.stop()
+            activeAudioTrack?.release()
+        } catch (_: Exception) {}
+
         val minBufferSize = AudioTrack.getMinBufferSize(
             sampleRate,
             AudioFormat.CHANNEL_OUT_MONO,
             AudioFormat.ENCODING_PCM_16BIT
-        )
+        ).coerceAtLeast(4096)
 
         val track = AudioTrack.Builder()
             .setAudioAttributes(
@@ -197,13 +236,21 @@ class SoundEffectsEngine(private val context: Context) {
                     .setChannelMask(AudioFormat.CHANNEL_OUT_MONO)
                     .build()
             )
-            .setBufferSizeInBytes(Math.max(pcmData.size, minBufferSize))
-            .setTransferMode(AudioTrack.MODE_STATIC)
+            .setBufferSizeInBytes(minBufferSize * 2)
+            .setTransferMode(AudioTrack.MODE_STREAM)
             .build()
 
-        track.write(pcmData, 0, pcmData.size)
         activeAudioTrack = track
         track.play()
+
+        var offset = 0
+        val chunkSize = 2048
+        while (offset < pcmData.size) {
+            val count = minOf(chunkSize, pcmData.size - offset)
+            val written = track.write(pcmData, offset, count)
+            if (written <= 0) break
+            offset += written
+        }
     }
 
     private fun processPcmAudio(
@@ -245,6 +292,12 @@ class SoundEffectsEngine(private val context: Context) {
 
     private fun generatePcmForEffect(effectId: String, sampleRate: Int): ByteArray {
         val durationSec = when (effectId) {
+            "bahman_mofid" -> 2.6
+            "gheysar" -> 2.2
+            "pat_mat" -> 2.0
+            "chipmunk_sample" -> 1.5
+            "monster_sample" -> 1.8
+            "robot_sample" -> 1.6
             "rimshot" -> 1.0
             "laugh_track" -> 2.2
             "sad_violin" -> 2.6
@@ -257,6 +310,10 @@ class SoundEffectsEngine(private val context: Context) {
             "cheer" -> 2.0
             "ey_jan" -> 1.5
             "kheili_ali" -> 1.5
+            "deshvari" -> 1.5
+            "soosis" -> 1.4
+            "naneh_goshname" -> 1.5
+            "moraba" -> 1.2
             else -> 1.2
         }
 
@@ -264,6 +321,122 @@ class SoundEffectsEngine(private val context: Context) {
         val pcm = ShortArray(totalSamples)
 
         when (effectId) {
+            "bahman_mofid" -> { // Vintage Iranian dramatic cinema monologue theme
+                for (i in 0 until totalSamples) {
+                    val t = i.toDouble() / sampleRate
+                    // Warm acoustic noir minor chord progression (Am -> Dm -> E)
+                    val baseFreq = if (t < 0.9) 110.0 else if (t < 1.8) 146.8 else 164.8
+                    val string1 = sin(2 * PI * baseFreq * t) * exp(-((t % 0.45) * 5.0))
+                    val string2 = 0.5 * sin(2 * PI * (baseFreq * 1.5) * t)
+                    val string3 = 0.3 * sin(2 * PI * (baseFreq * 2.0) * t)
+                    // Monologue vocal formant rhythm
+                    val vocalRhythm = (0.5 + 0.5 * sin(2 * PI * 4.5 * t)) * (0.8 + 0.2 * sin(2 * PI * 180.0 * t))
+                    val env = if (t < 0.2) t / 0.2 else if (t > 2.2) (2.6 - t) / 0.4 else 1.0
+                    val sample = (string1 + string2 + string3 + vocalRhythm * 0.4) * env
+                    pcm[i] = (sample * 21000).toInt().coerceIn(-32768, 32767).toShort()
+                }
+            }
+            "gheysar" -> { // Dramatic cinema suspense crescendo & sharp violin sting
+                for (i in 0 until totalSamples) {
+                    val t = i.toDouble() / sampleRate
+                    val tremolo = 1.0 + 0.15 * sin(2 * PI * 12.0 * t)
+                    val root = 130.81 // C3
+                    val sting = sin(2 * PI * root * tremolo * t) +
+                            0.7 * sin(2 * PI * (root * 1.414) * t) + // Tritone dissonance
+                            0.4 * sin(2 * PI * (root * 2.0) * t)
+                    val hit = if (t in 1.4..1.8) sin(2 * PI * 90.0 * exp(-(t - 1.4) * 8) * (t - 1.4)) * 1.5 else 0.0
+                    val env = if (t < 1.4) (t / 1.4) * 0.7 else exp(-(t - 1.4) * 2.5)
+                    pcm[i] = ((sting + hit) * env * 22000).toInt().coerceIn(-32768, 32767).toShort()
+                }
+            }
+            "pat_mat" -> { // Bouncy joyful cartoon slapstick melody (Pat & Mat)
+                val melody = doubleArrayOf(523.25, 659.25, 783.99, 1046.50, 783.99, 659.25, 880.0, 783.99)
+                for (i in 0 until totalSamples) {
+                    val t = i.toDouble() / sampleRate
+                    val noteIdx = (t * 4.0).toInt().coerceIn(0, melody.size - 1)
+                    val freq = melody[noteIdx]
+                    val notePhase = (t * 4.0) - noteIdx
+                    val envelope = exp(-notePhase * 4.0)
+                    val harm1 = sin(2 * PI * freq * t)
+                    val harm2 = 0.4 * sin(2 * PI * freq * 2 * t)
+                    val harm3 = 0.2 * sin(2 * PI * freq * 3 * t)
+                    val boing = 0.2 * sin(2 * PI * (freq + sin(2 * PI * 15.0 * t) * 50.0) * t)
+                    pcm[i] = ((harm1 + harm2 + harm3 + boing) * envelope * 22000).toInt().coerceIn(-32768, 32767).toShort()
+                }
+            }
+            "chipmunk_sample" -> { // Funny high-pitched squirrel vocal chatter
+                for (i in 0 until totalSamples) {
+                    val t = i.toDouble() / sampleRate
+                    val f0 = 750.0 + sin(2 * PI * 7.0 * t) * 250.0
+                    val burst = (0.5 + 0.5 * sin(2 * PI * 8.0 * t))
+                    val v1 = sin(2 * PI * f0 * t)
+                    val v2 = 0.6 * sin(2 * PI * (f0 * 2.2) * t)
+                    val v3 = 0.3 * sin(2 * PI * (f0 * 3.1) * t)
+                    val env = exp(-(t % 0.25) * 6.0)
+                    pcm[i] = ((v1 + v2 + v3) * burst * env * 22000).toInt().coerceIn(-32768, 32767).toShort()
+                }
+            }
+            "monster_sample" -> { // Deep rumbling monster growl
+                for (i in 0 until totalSamples) {
+                    val t = i.toDouble() / sampleRate
+                    val f0 = 85.0 + sin(2 * PI * 3.0 * t) * 25.0
+                    val v1 = sin(2 * PI * f0 * t)
+                    val v2 = 0.8 * sin(2 * PI * (f0 * 1.5) * t)
+                    val sub = 0.5 * sin(2 * PI * (f0 * 0.5) * t)
+                    val grit = (Random.nextDouble() * 2 - 1) * 0.2
+                    val env = if (t < 0.3) t / 0.3 else exp(-(t - 0.3) * 1.2)
+                    pcm[i] = ((v1 + v2 + sub + grit) * env * 24000).toInt().coerceIn(-32768, 32767).toShort()
+                }
+            }
+            "robot_sample" -> { // Futuristic modulated robot vocoder voice
+                for (i in 0 until totalSamples) {
+                    val t = i.toDouble() / sampleRate
+                    val carrier = if ((sin(2 * PI * 220.0 * t) > 0)) 1.0 else -1.0
+                    val mod = sin(2 * PI * 25.0 * t)
+                    val sweep = 350.0 + sin(2 * PI * 4.0 * t) * 120.0
+                    val form = sin(2 * PI * sweep * t)
+                    val env = if (t < 0.1) t / 0.1 else exp(-(t - 0.1) * 1.5)
+                    pcm[i] = ((carrier * 0.4 + form * 0.6) * (0.6 + 0.4 * mod) * env * 21000).toInt().coerceIn(-32768, 32767).toShort()
+                }
+            }
+            "deshvari" -> { // Quirky spring & laughing cadence
+                for (i in 0 until totalSamples) {
+                    val t = i.toDouble() / sampleRate
+                    val freq = 320.0 + sin(2 * PI * 8.0 * t) * 140.0
+                    val spring = sin(2 * PI * freq * t)
+                    val env = exp(-(t % 0.3) * 5.0)
+                    pcm[i] = (spring * env * 22000).toInt().coerceIn(-32768, 32767).toShort()
+                }
+            }
+            "soosis" -> { // Clowning trumpet fanfare
+                val notes = doubleArrayOf(392.0, 440.0, 523.25, 659.25)
+                for (i in 0 until totalSamples) {
+                    val t = i.toDouble() / sampleRate
+                    val idx = (t * 3.0).toInt().coerceIn(0, notes.size - 1)
+                    val freq = notes[idx]
+                    val s = sin(2 * PI * freq * t) + 0.4 * sin(2 * PI * freq * 2 * t)
+                    val env = exp(-(t % 0.33) * 4.0)
+                    pcm[i] = (s * env * 22000).toInt().coerceIn(-32768, 32767).toShort()
+                }
+            }
+            "naneh_goshname" -> { // Child whiny comedic cadence
+                for (i in 0 until totalSamples) {
+                    val t = i.toDouble() / sampleRate
+                    val sweep = 550.0 + sin(2 * PI * 5.0 * t) * 180.0
+                    val v = sin(2 * PI * sweep * t) + 0.3 * sin(2 * PI * sweep * 2 * t)
+                    val env = (0.5 + 0.5 * sin(2 * PI * 4.0 * t)) * exp(-t * 0.8)
+                    pcm[i] = (v * env * 22000).toInt().coerceIn(-32768, 32767).toShort()
+                }
+            }
+            "moraba" -> { // Joyful breakfast whistle
+                for (i in 0 until totalSamples) {
+                    val t = i.toDouble() / sampleRate
+                    val f = 900.0 + (t * 400.0)
+                    val w = sin(2 * PI * f * t)
+                    val env = exp(-t * 2.0)
+                    pcm[i] = (w * env * 20000).toInt().coerceIn(-32768, 32767).toShort()
+                }
+            }
             "rimshot" -> { // Ba-Dum-Tss Comedy Drum Hit!
                 for (i in 0 until totalSamples) {
                     val t = i.toDouble() / sampleRate

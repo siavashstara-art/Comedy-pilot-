@@ -243,18 +243,44 @@ fun VoiceChangerTab(
                         } else {
                             // No recording yet: Speak funny sample dialogue demonstrating the character effect!
                             when (fx.id) {
-                                "chipmunk" -> ttsEngine.speak("سلام! من سنجاب شیطون کمدی پایلوتم!", pitch = 1.8f, speechRate = 1.3f)
-                                "monster" -> ttsEngine.speak("من غول بزرگ و خنده‌دارم!", pitch = 0.6f, speechRate = 0.85f)
-                                "robot" -> ttsEngine.speak("سلام کاربر عزیز، من ربات هوشمندم!", pitch = 1.0f, speechRate = 1.0f)
-                                "helium" -> ttsEngine.speak("صدام شبیه بادکنک هلیومی شده!", pitch = 2.1f, speechRate = 1.15f)
-                                "megaphone" -> ttsEngine.speak("توجه فرمایید! برنامه کمدی پایلوت در حال اجراست!", pitch = 1.2f, speechRate = 1.0f)
-                                "echo" -> ttsEngine.speak("پژواک صدا در غار... سلام... سلام...", pitch = 0.95f, speechRate = 0.9f)
-                                "slow" -> ttsEngine.speak("چــــطـــــوری ایــــــرانـــــی؟", pitch = 0.7f, speechRate = 0.6f)
-                                "fast" -> ttsEngine.speak("سریع بدو که قطار خنده رفت!", pitch = 1.4f, speechRate = 1.5f)
-                                else -> ttsEngine.speak("افکت صدای ${fx.nameFa} فعال شد!", pitch = fx.pitchMultiplier, speechRate = fx.speedMultiplier)
+                                "chipmunk" -> {
+                                    soundEngine.playSoundEffect("chipmunk_sample")
+                                    ttsEngine.speak("سلام! من سنجاب شیطون کمدی پایلوتم!", pitch = 1.8f, speechRate = 1.3f)
+                                }
+                                "monster" -> {
+                                    soundEngine.playSoundEffect("monster_sample")
+                                    ttsEngine.speak("من غول بزرگ و خنده‌دارم!", pitch = 0.6f, speechRate = 0.85f)
+                                }
+                                "robot" -> {
+                                    soundEngine.playSoundEffect("robot_sample")
+                                    ttsEngine.speak("سلام کاربر عزیز، من ربات هوشمندم!", pitch = 1.0f, speechRate = 1.0f)
+                                }
+                                "helium" -> {
+                                    soundEngine.playSoundEffect("chipmunk_sample")
+                                    ttsEngine.speak("صدام شبیه بادکنک هلیومی شده!", pitch = 2.1f, speechRate = 1.15f)
+                                }
+                                "megaphone" -> {
+                                    soundEngine.playSoundEffect("dramatic_horn")
+                                    ttsEngine.speak("توجه فرمایید! برنامه کمدی پایلوت در حال اجراست!", pitch = 1.2f, speechRate = 1.0f)
+                                }
+                                "echo" -> {
+                                    soundEngine.playSoundEffect("sad_violin")
+                                    ttsEngine.speak("پژواک صدا در غار... سلام... سلام...", pitch = 0.95f, speechRate = 0.9f)
+                                }
+                                "slow" -> {
+                                    soundEngine.playSoundEffect("monster_sample")
+                                    ttsEngine.speak("چــــطـــــوری ایــــــرانـــــی؟", pitch = 0.7f, speechRate = 0.6f)
+                                }
+                                "fast" -> {
+                                    soundEngine.playSoundEffect("chipmunk_sample")
+                                    ttsEngine.speak("سریع بدو که قطار خنده رفت!", pitch = 1.4f, speechRate = 1.5f)
+                                }
+                                else -> {
+                                    soundEngine.playSoundEffect("cheetori")
+                                    ttsEngine.speak("افکت صدای ${fx.nameFa} فعال شد!", pitch = fx.pitchMultiplier, speechRate = fx.speedMultiplier)
+                                }
                             }
-                            soundEngine.playSoundEffect(if (fx.id == "monster") "dramatic_horn" else if (fx.id == "chipmunk") "boing" else "cheetori")
-                            Toast.makeText(context, "🗣️ نمونه ${fx.nameFa} | برای تغییر صدای خودتان، دکمه میکروفون بالا را بزنید!", Toast.LENGTH_LONG).show()
+                            Toast.makeText(context, "🗣️ افکت صوتی ${fx.nameFa} | برای صدای خودتان، میکروفون بالا را لمس کنید!", Toast.LENGTH_SHORT).show()
                         }
                     },
                     colors = CardDefaults.cardColors(

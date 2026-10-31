@@ -1,0 +1,476 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>اکوسیستم توانا سیتی - کلود مدیا هاب (مخزن ویدیوهای نوستالژی)</title>
+    <style>
+        :root {
+            --bg-color: #0b0b0c;
+            --card-bg: #18181a;
+            --gold-primary: #d4af37;
+            --gold-light: #f3e5ab;
+            --gold-dark: #aa7c11;
+            --text-main: #ffffff;
+            --text-muted: #b0b0b0;
+            --accent-red: #ff4757;
+            --accent-green: #2ed573;
+        }
+        * {
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+        }
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Tahoma, Arial, sans-serif;
+            margin: 0;
+            padding: 12px;
+            direction: rtl;
+        }
+        .ecosystem-header {
+            background: linear-gradient(135deg, rgba(212, 175, 55, 0.15), rgba(18, 18, 18, 0.9));
+            border: 1px solid var(--gold-primary);
+            border-radius: 12px;
+            padding: 12px 14px;
+            margin-bottom: 14px;
+            text-align: center;
+        }
+        .header-title {
+            color: var(--gold-primary);
+            font-size: 1rem;
+            font-weight: bold;
+            margin: 0 0 6px 0;
+            line-height: 1.4;
+        }
+        .header-sub {
+            color: var(--text-muted);
+            font-size: 0.78rem;
+            margin: 0;
+        }
+        .search-container {
+            margin-bottom: 12px;
+        }
+        .search-box {
+            width: 100%;
+            padding: 12px 14px;
+            background: var(--card-bg);
+            border: 1.5px solid var(--gold-primary);
+            color: var(--text-main);
+            border-radius: 10px;
+            font-size: 0.95rem;
+            outline: none;
+            transition: all 0.2s ease;
+        }
+        .search-box:focus {
+            box-shadow: 0 0 10px rgba(212, 175, 55, 0.4);
+            border-color: var(--gold-light);
+        }
+        .category-scroll {
+            display: flex;
+            gap: 8px;
+            overflow-x: auto;
+            padding-bottom: 10px;
+            margin-bottom: 14px;
+            scrollbar-width: none;
+        }
+        .category-scroll::-webkit-scrollbar {
+            display: none;
+        }
+        .category-chip {
+            background: var(--card-bg);
+            border: 1px solid #3a3a3c;
+            color: var(--text-muted);
+            padding: 6px 14px;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            white-space: nowrap;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        .category-chip.active {
+            background: var(--gold-primary);
+            color: #000000;
+            font-weight: bold;
+            border-color: var(--gold-primary);
+        }
+        .video-grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 16px;
+        }
+        .video-card {
+            background: var(--card-bg);
+            border: 1px solid rgba(212, 175, 55, 0.3);
+            border-radius: 14px;
+            overflow: hidden;
+            box-shadow: 0 6px 14px rgba(0, 0, 0, 0.6);
+            transition: transform 0.2s ease;
+        }
+        .video-container {
+            position: relative;
+            width: 100%;
+            padding-top: 56.25%; /* 16:9 ratio */
+            background: #000;
+        }
+        .video-container video {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+        .video-badge {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: rgba(0, 0, 0, 0.75);
+            color: var(--gold-light);
+            border: 1px solid var(--gold-primary);
+            padding: 3px 8px;
+            border-radius: 6px;
+            font-size: 0.72rem;
+            font-weight: bold;
+            z-index: 2;
+        }
+        .video-duration {
+            position: absolute;
+            bottom: 10px;
+            left: 10px;
+            background: rgba(0, 0, 0, 0.8);
+            color: #ffffff;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 0.7rem;
+            z-index: 2;
+        }
+        .video-info {
+            padding: 12px 14px;
+        }
+        .video-title {
+            font-size: 0.98rem;
+            font-weight: bold;
+            color: var(--gold-light);
+            margin: 0 0 6px 0;
+            line-height: 1.4;
+        }
+        .video-desc {
+            font-size: 0.8rem;
+            color: var(--text-muted);
+            margin: 0 0 12px 0;
+            line-height: 1.45;
+        }
+        .action-row {
+            display: flex;
+            gap: 8px;
+        }
+        .btn-download {
+            flex: 2;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            background: linear-gradient(135deg, var(--gold-primary), var(--gold-dark));
+            color: #0b0b0c;
+            font-weight: bold;
+            text-decoration: none;
+            padding: 10px 12px;
+            border-radius: 8px;
+            font-size: 0.85rem;
+            text-align: center;
+            cursor: pointer;
+            border: none;
+            box-shadow: 0 3px 8px rgba(212, 175, 55, 0.3);
+        }
+        .btn-share {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 4px;
+            background: rgba(255, 255, 255, 0.08);
+            border: 1px solid #3a3a3c;
+            color: #ffffff;
+            font-size: 0.82rem;
+            border-radius: 8px;
+            padding: 10px;
+            cursor: pointer;
+        }
+        .footer-text {
+            text-align: center;
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            margin-top: 30px;
+            border-top: 1px solid rgba(212, 175, 55, 0.25);
+            padding: 16px 8px;
+            line-height: 1.6;
+        }
+        .footer-portfolio {
+            color: var(--gold-primary);
+            font-size: 0.73rem;
+            margin-top: 6px;
+        }
+        .toast-msg {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: var(--gold-primary);
+            color: #000;
+            font-weight: bold;
+            font-size: 0.85rem;
+            padding: 10px 20px;
+            border-radius: 25px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+            display: none;
+            z-index: 1000;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Header Stamp -->
+    <div class="ecosystem-header">
+        <h1 class="header-title">اکوسیستم آفرینش آفرینا شهر جدید نیو متاورسی جهان ایبل سیتی (توانا سیتی) - FB NewMeta [کلود مدیا هاب]</h1>
+        <p class="header-sub">مخزن ابری ویدیوها و کلیپ‌های نوستالژی آماده برای اینستاگرام، روبیکا و آپارات</p>
+    </div>
+
+    <!-- Search Input -->
+    <div class="search-container">
+        <input type="text" id="searchInput" class="search-box" placeholder="🔍 جستجوی کلیپ (بهمن مفید، قیصر، پت و مت، دشواری...)" onkeyup="filterVideos()">
+    </div>
+
+    <!-- Category Filters -->
+    <div class="category-scroll">
+        <button class="category-chip active" onclick="setCategory('all', this)">همه کلیپ‌ها 🌟</button>
+        <button class="category-chip" onclick="setCategory('cinema', this)">سینمای اصیل و قیصر 🎬</button>
+        <button class="category-chip" onclick="setCategory('animation', this)">پت و مت و کارتون 🧸</button>
+        <button class="category-chip" onclick="setCategory('tv', this)">نوستالژی تلویزیون 📺</button>
+        <button class="category-chip" onclick="setCategory('viral', this)">وایرال و طنز مدرن 🚀</button>
+    </div>
+
+    <!-- Video Grid -->
+    <div class="video-grid" id="videoGrid">
+
+        <!-- Card 1: Bahman Mofid -->
+        <div class="video-card" data-category="cinema" data-keywords="بهمن مفید قیصر طوقی رضا موتوری ما بودیم لات دیالوگ من بودم حاجی نصرت">
+            <div class="video-container">
+                <div class="video-badge">سینمای اصیل</div>
+                <div class="video-duration">00:30</div>
+                <video controls playsinline preload="metadata" poster="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='640' height='360' viewBox='0 0 640 360'><rect width='640' height='360' fill='%231a1610'/><circle cx='320' cy='150' r='60' fill='%23d4af37'/><text x='320' y='260' font-family='sans-serif' font-size='22' font-weight='bold' fill='%23f3e5ab' text-anchor='middle'>بهمن مفید (ما بودیم...)</text><text x='320' y='295' font-family='sans-serif' font-size='14' fill='%23b0b0b0' text-anchor='middle'>دیالوگ معروف و ماندگار سیزده‌بدر</text></svg>">
+                    <source src="https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4" type="video/mp4">
+                    مرورگر شما از پخش ویدیو پشتیبانی نمی‌کند.
+                </video>
+            </div>
+            <div class="video-info">
+                <div class="video-title">بهمن مفید - دیالوگ ماندگار «ما بودیم...» 🧔‍♂️</div>
+                <div class="video-desc">«ما بودیم، حاجی نصرت، رضا پونصد، علی فرصت، آره و اینا خیلی بودیم...» مناسب برای دابسمش، ریلز و استوری.</div>
+                <div class="action-row">
+                    <button class="btn-download" onclick="downloadClip('https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4', 'Bahman_Mofid_Dialogue')">
+                        📥 دانلود ویدیوی MP4
+                    </button>
+                    <button class="btn-share" onclick="shareClip('بهمن مفید - دیالوگ ماندگار ما بودیم', 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4')">
+                        📤 اشتراک
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Card 2: Pat & Mat -->
+        <div class="video-card" data-category="animation" data-keywords="پت و مت کارتون تعمیرات خنده دار خلاقیت دستپاچه خرابکاری انیمیشن">
+            <div class="video-container">
+                <div class="video-badge">انیمیشن نوستالژی</div>
+                <div class="video-duration">00:45</div>
+                <video controls playsinline preload="metadata" poster="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='640' height='360' viewBox='0 0 640 360'><rect width='640' height='360' fill='%230f1d24'/><circle cx='270' cy='150' r='50' fill='%23ffbb33'/><circle cx='370' cy='150' r='50' fill='%23ff4444'/><text x='320' y='255' font-family='sans-serif' font-size='22' font-weight='bold' fill='%23ffffff' text-anchor='middle'>پت و مت (تعمیرکاران نابغه)</text><text x='320' y='290' font-family='sans-serif' font-size='14' fill='%2390caf9' text-anchor='middle'>خرابکاری خنده‌دار و ریتم شاد</text></svg>">
+                    <source src="https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerEscapes.mp4" type="video/mp4">
+                    مرورگر شما از پخش ویدیو پشتیبانی نمی‌کند.
+                </video>
+            </div>
+            <div class="video-info">
+                <div class="video-title">پت و مت - خرابکاری خلاقانه و تعمیرات 🧸🪚</div>
+                <div class="video-desc">موسیقی شاد خاطره‌انگیز همراه با ایده‌های عجیب و غریب برای حل مشکلات خانگی.</div>
+                <div class="action-row">
+                    <button class="btn-download" onclick="downloadClip('https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerEscapes.mp4', 'Pat_and_Mat_Comedy')">
+                        📥 دانلود ویدیوی MP4
+                    </button>
+                    <button class="btn-share" onclick="shareClip('پت و مت - خرابکاری خلاقانه', 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerEscapes.mp4')">
+                        📤 اشتراک
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Card 3: Gheysar -->
+        <div class="video-card" data-category="cinema" data-keywords="قیصر بهروز وثوقی فرمون بازارچه نواب انتقام کیمیایی چاقو">
+            <div class="video-container">
+                <div class="video-badge">شاهکار سینما</div>
+                <div class="video-duration">00:35</div>
+                <video controls playsinline preload="metadata" poster="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='640' height='360' viewBox='0 0 640 360'><rect width='640' height='360' fill='%23141414'/><circle cx='320' cy='150' r='55' fill='%23d4af37'/><text x='320' y='255' font-family='sans-serif' font-size='22' font-weight='bold' fill='%23f3e5ab' text-anchor='middle'>قیصر (داش رو کشتن!)</text><text x='320' y='290' font-family='sans-serif' font-size='14' fill='%23b0b0b0' text-anchor='middle'>سکانس حماسی بازارچه نواب</text></svg>">
+                    <source src="https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerFun.mp4" type="video/mp4">
+                    مرورگر شما از پخش ویدیو پشتیبانی نمی‌کند.
+                </video>
+            </div>
+            <div class="video-info">
+                <div class="video-title">قیصر - «قیصر کجایی که داش فرمون رو کشتن!» 🔪</div>
+                <div class="video-desc">سکانس پرهیجان با موسیقی ماندگار اسفندیار منفردزاده و ورود به بازارچه.</div>
+                <div class="action-row">
+                    <button class="btn-download" onclick="downloadClip('https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerFun.mp4', 'Gheysar_Navab')">
+                        📥 دانلود ویدیوی MP4
+                    </button>
+                    <button class="btn-share" onclick="shareClip('قیصر - داش فرمون رو کشتن', 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerFun.mp4')">
+                        📤 اشتراک
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Card 4: Deshvari (No Problem) -->
+        <div class="video-card" data-category="tv" data-keywords="دشواری پیرمرد باصفا گزارش مصاحبه کی گفته دشواری داریم مشکلی نیست">
+            <div class="video-container">
+                <div class="video-badge">نوستالژی تلویزیون</div>
+                <div class="video-duration">00:25</div>
+                <video controls playsinline preload="metadata" poster="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='640' height='360' viewBox='0 0 640 360'><rect width='640' height='360' fill='%2319221b'/><circle cx='320' cy='150' r='55' fill='%232ed573'/><text x='320' y='255' font-family='sans-serif' font-size='22' font-weight='bold' fill='%23e8f8f0' text-anchor='middle'>دشواری نداریم! 🧔‍♂️</text><text x='320' y='290' font-family='sans-serif' font-size='14' fill='%2380d8a8' text-anchor='middle'>گزارش باحال و خاطره‌انگیز پیرمرد</text></svg>">
+                    <source src="https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerJoyBlazes.mp4" type="video/mp4">
+                    مرورگر شما از پخش ویدیو پشتیبانی نمی‌کند.
+                </video>
+            </div>
+            <div class="video-info">
+                <div class="video-title">پیرمرد باصفا - «دشواری نداریم، کی گفته؟!» 🌟</div>
+                <div class="video-desc">وایرال‌ترین تکه‌کلام صمیمانه درباره حل مسائل زندگی با روحیه بالا و لبخند.</div>
+                <div class="action-row">
+                    <button class="btn-download" onclick="downloadClip('https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerJoyBlazes.mp4', 'Deshvari_Nedareem')">
+                        📥 دانلود ویدیوی MP4
+                    </button>
+                    <button class="btn-share" onclick="shareClip('دشواری نداریم - پیرمرد باصفا', 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerJoyBlazes.mp4')">
+                        📤 اشتراک
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Card 5: Soosis & Goosht -->
+        <div class="video-card" data-category="tv" data-keywords="سوسیس گوشت همش سوسیسه بخور غذا خوشمزه طنز تلویزیون">
+            <div class="video-container">
+                <div class="video-badge">طنز تلویزیون</div>
+                <div class="video-duration">00:20</div>
+                <video controls playsinline preload="metadata" poster="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='640' height='360' viewBox='0 0 640 360'><rect width='640' height='360' fill='%23281414'/><circle cx='320' cy='150' r='55' fill='%23ff4757'/><text x='320' y='255' font-family='sans-serif' font-size='22' font-weight='bold' fill='%23ffffff' text-anchor='middle'>همش سوسیسه! 🌭</text><text x='320' y='290' font-family='sans-serif' font-size='14' fill='%23ff9999' text-anchor='middle'>دیالوگ معروف بخور همش گوشته</text></svg>">
+                    <source src="https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/WeAreGoingOnBullrun.mp4" type="video/mp4">
+                    مرورگر شما از پخش ویدیو پشتیبانی نمی‌کند.
+                </video>
+            </div>
+            <div class="video-info">
+                <div class="video-title">نوستالژی - «بخور، همش گوشته، همش سوسیسه!» 🌭</div>
+                <div class="video-desc">کلیپ کوتاه خنده‌دار برای انواع میم‌های غذا، رستوران و زندگی روزمره.</div>
+                <div class="action-row">
+                    <button class="btn-download" onclick="downloadClip('https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/WeAreGoingOnBullrun.mp4', 'Hamash_Soosise')">
+                        📥 دانلود ویدیوی MP4
+                    </button>
+                    <button class="btn-share" onclick="shareClip('بخور همش گوشته همش سوسیسه', 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/WeAreGoingOnBullrun.mp4')">
+                        📤 اشتراک
+                    </button>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- Official Footer Stamp -->
+    <div class="footer-text">
+        <div>تمام حقوق مادی و معنوی این اثر متعلق است به آقای اکبر علی‌میری (معروف به سیاوش / توسعه‌دهنده).</div>
+        <div class="footer-portfolio">
+            فهرست کامل پورتفوی اکوسیستم توانا سیتی:<br>
+            فرش‌باز • لینگوی • تی‌دیپلوی • توانا پلتفرم • دکورمیت • سالونیار • کلینیکیار • خدمات‌یار • شطرنج هم‌جهان • ابزارهای توسعه‌دهندگان
+        </div>
+    </div>
+
+    <!-- Toast Notification -->
+    <div id="toast" class="toast-msg">لینک دانلود با موفقیت فعال شد ✅</div>
+
+    <script>
+        let currentCategory = 'all';
+
+        function filterVideos() {
+            const query = document.getElementById('searchInput').value.trim().toLowerCase();
+            const cards = document.querySelectorAll('.video-card');
+
+            cards.forEach(card => {
+                const title = card.querySelector('.video-title').innerText.toLowerCase();
+                const desc = card.querySelector('.video-desc').innerText.toLowerCase();
+                const keywords = card.getAttribute('data-keywords').toLowerCase();
+                const cardCat = card.getAttribute('data-category');
+
+                const matchesQuery = !query || title.includes(query) || desc.includes(query) || keywords.includes(query);
+                const matchesCategory = currentCategory === 'all' || cardCat === currentCategory;
+
+                if (matchesQuery && matchesCategory) {
+                    card.style.display = 'block';
+                } else {
+                    card.style.display = 'none';
+                }
+            });
+        }
+
+        function setCategory(category, buttonElement) {
+            currentCategory = category;
+            document.querySelectorAll('.category-chip').forEach(btn => btn.classList.remove('active'));
+            if (buttonElement) {
+                buttonElement.classList.add('active');
+            }
+            filterVideos();
+        }
+
+        function showToast(message) {
+            const toast = document.getElementById('toast');
+            toast.innerText = message;
+            toast.style.display = 'block';
+            setTimeout(() => {
+                toast.style.display = 'none';
+            }, 3000);
+        }
+
+        function downloadClip(videoUrl, fileName) {
+            // Check if Android Native Bridge is available
+            if (window.AndroidBridge && typeof window.AndroidBridge.downloadVideo === 'function') {
+                window.AndroidBridge.downloadVideo(videoUrl, fileName);
+                showToast('در حال دانلود در گالری گوشی... 📥');
+                return;
+            }
+
+            // Web fallback: Create anchor element with download attribute
+            const a = document.createElement('a');
+            a.href = videoUrl;
+            a.download = (fileName || 'clip') + '.mp4';
+            a.target = '_blank';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            showToast('در حال شروع دانلود ویدیوی MP4... 📥');
+        }
+
+        function shareClip(title, videoUrl) {
+            if (navigator.share) {
+                navigator.share({
+                    title: title,
+                    text: title + ' - دانلود از کلود مدیا هاب اکوسیستم توانا سیتی',
+                    url: videoUrl
+                }).catch(() => {
+                    copyToClipboard(videoUrl);
+                });
+            } else if (window.AndroidBridge && typeof window.AndroidBridge.shareVideo === 'function') {
+                window.AndroidBridge.shareVideo(title, videoUrl);
+            } else {
+                copyToClipboard(videoUrl);
+            }
+        }
+
+        function copyToClipboard(text) {
+            navigator.clipboard.writeText(text).then(() => {
+                showToast('لینک ویدیو کپی شد! در اینستاگرام/روبیکا ارسال کنید 📋');
+            }).catch(() => {
+                showToast('لینک: ' + text);
+            });
+        }
+    </script>
+</body>
+</html>
